@@ -1,0 +1,1 @@
+bash upload_all.sh
