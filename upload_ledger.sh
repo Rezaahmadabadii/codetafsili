@@ -49,8 +49,28 @@ copy_ledger() {
         return 1
     fi
     echo "      [OK] Copy done: $DEST_REL"
+
+    # --- فایل فشرده + فایل نسخه (هش) برای بروزرسانی خودکار برنامه ---
+    gzip -9 -c "$DEST_FILE" > "$(pwd)/GroupLedger.csv.gz"
+    if [ $? -ne 0 ]; then
+        echo "[X] gzip failed!"
+        return 1
+    fi
+    SHA=$(tr -d '\r' < "$DEST_FILE" | sha256sum | cut -d' ' -f1)
+    SIZE=$(wc -c < "$DEST_FILE" | tr -d ' ')
+    REC=$(( $(wc -l < "$DEST_FILE") - 1 ))
+    printf 'sha256=%s\nsize=%s\nrecords=%s\nupdated=%s\n' "$SHA" "$SIZE" "$REC" "$(date '+%Y-%m-%d %H:%M:%S')" > "$(pwd)/GroupLedger.meta"
+
+    # جلوگیری از تغییر پایان خط فایل‌ها توسط گیت (حیاتی برای هش)
+    if [ ! -f "$(pwd)/.gitattributes" ]; then
+        printf 'GroupLedger.csv -text\nGroupLedger.csv.gz -text\nGroupLedger.meta text eol=lf\n' > "$(pwd)/.gitattributes"
+    fi
+    echo "      [OK] Created GroupLedger.csv.gz + GroupLedger.meta (records: $REC)"
     return 0
 }
+
+# فایل‌هایی که برای بروزرسانی دیتابیس باید آپلود شوند
+LEDGER_FILES="GroupLedger.csv GroupLedger.csv.gz GroupLedger.meta .gitattributes"
 
 # --- Commit & push ---
 do_commit_push() {
@@ -100,7 +120,7 @@ case "$CHOICE" in
         echo
         copy_ledger || { read -p "Press Enter to exit..."; exit 1; }
         echo
-        git add "$DEST_REL"
+        git add $LEDGER_FILES
         if [ $? -ne 0 ]; then
             echo "[X] git add failed!"
             read -p "Press Enter to exit..."

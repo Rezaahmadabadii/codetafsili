@@ -1,0 +1,3 @@
+GroupLedger.csv -text
+GroupLedger.csv.gz -text
+GroupLedger.meta text eol=lf
